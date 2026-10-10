@@ -1,0 +1,6 @@
+Flask
+pymongo[srv]
+apify-client
+nltk
+python-dotenv
+flask-cors==4.0.1

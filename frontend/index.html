@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b13">
+  <meta name="description" content="Optimize your product choices with RupeeWise, powered by budget and review sentiment analysis.">
+  <title>RupeeWise | Product Optimization Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="dashboard-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="RupeeWise home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span>Rupee<span class="brand-period">Wise</span></span>
+      </a>
+      <div class="topbar-meta"><span class="status-light" aria-hidden="true"></span> PRODUCT OPTIMIZATION ENGINE</div>
+      <nav class="tab-nav" role="tablist" aria-label="Dashboard views">
+        <button class="tab-button is-active" id="tab-comparison" type="button" role="tab" aria-selected="true" aria-controls="view-comparison">💰 Comparison Engine</button>
+        <button class="tab-button" id="tab-analysis" type="button" role="tab" aria-selected="false" aria-controls="view-analysis">📊 Sentiment Analysis</button>
+        <button class="tab-button" id="tab-history" type="button" role="tab" aria-selected="false" aria-controls="view-history">📁 Database History</button>
+      </nav>
+    </header>
+
+    <section class="view-panel" id="view-comparison" role="tabpanel" aria-labelledby="tab-comparison">
+    <section class="hero" id="top" aria-labelledby="page-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> THE SMARTER WAY TO SHOP</p>
+        <h1 id="page-title">Good choices.<br><span>Better value.</span></h1>
+        <p class="hero-description">Tell us what you’re looking for. Find the best fit for your budget, powered by real review sentiment and optimized in rupees.</p>
+      </div>
+      <div class="hero-orbit" aria-hidden="true">
+        <div class="orbit-ring orbit-ring-outer"></div>
+        <div class="orbit-ring orbit-ring-inner"></div>
+        <div class="orbit-core"><span class="core-spark">✳</span></div>
+        <span class="orbit-label orbit-label-top">VALUE</span>
+        <span class="orbit-label orbit-label-bottom">SIGNAL 01</span>
+      </div>
+    </section>
+
+    <section class="search-panel glass-panel" aria-label="Product comparison controls">
+      <div class="panel-topline"><span class="section-index">01</span><span>BUILD YOUR COMPARISON</span><span class="panel-rule"></span><span class="live-label"><span class="status-light"></span> READY</span></div>
+      <form id="compare-form" class="compare-form">
+        <label class="search-field" for="keyword">
+          <span class="field-label">WHAT ARE YOU SHOPPING FOR?</span>
+          <span class="input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg><input id="keyword" name="keyword" type="search" placeholder="Try headphones, tablet, fitness…" autocomplete="off" required></span>
+        </label>
+        <div class="budget-field">
+          <div class="budget-heading"><label class="field-label" for="budget">YOUR MAXIMUM BUDGET</label><output class="budget-value" id="budget-value" for="budget">₹1,500</output></div>
+          <input id="budget" name="budget" class="budget-slider" type="range" min="1500" max="150000" step="500" value="1500">
+          <div class="range-labels"><span>₹1,500</span><span>₹1,50,000</span></div>
+        </div>
+        <button class="compare-button" type="submit"><span class="button-text">Compare products</span><span class="button-icon" aria-hidden="true">↗</span></button>
+      </form>
+      <p class="form-note">A smarter shortlist, sorted by value per rupee.</p>
+    </section>
+
+    <section class="results-section" id="results" aria-labelledby="results-title">
+      <div class="results-heading">
+        <div><p class="eyebrow"><span class="eyebrow-line"></span> YOUR SHORTLIST</p><h2 id="results-title">The value edit<span class="heading-period">.</span></h2></div>
+        <div class="sort-indicator"><span class="sort-dot"></span> RANKED BY VALUE</div>
+      </div>
+
+      <div class="results-layout">
+        <div class="product-results" id="product-results" aria-live="polite" aria-busy="false">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-mark" aria-hidden="true">✳</div>
+            <p class="empty-title">Your next great find starts here.</p>
+            <p class="empty-copy">Choose a search and budget above to see your best-value picks.</p>
+          </div>
+        </div>
+        <aside class="summary-panel glass-panel" aria-labelledby="summary-title">
+          <div class="summary-top"><span class="section-index">02</span><span>KNAPSACK SUMMARY</span></div>
+          <h3 id="summary-title">Your budget,<br>well spent.</h3>
+          <div class="budget-meter" role="img" aria-label="Budget usage, waiting for comparison">
+            <div class="meter-track"><div class="meter-fill" id="meter-fill"></div></div>
+            <div class="meter-labels"><span>ALLOCATED</span><span id="meter-percent">0%</span></div>
+          </div>
+          <div class="summary-metrics">
+            <div class="metric"><span class="metric-label">TOTAL VALUE</span><strong id="summary-spent">₹0</strong></div>
+            <div class="metric"><span class="metric-label">BUDGET LEFT</span><strong id="summary-remaining">₹0</strong></div>
+            <div class="metric"><span class="metric-label">MATCHED ITEMS</span><strong id="summary-count">—</strong></div>
+          </div>
+          <p class="summary-footnote" id="summary-footnote">Fractional knapsack optimization is standing by.</p>
+        </aside>
+      </div>
+    </section>
+    </section>
+
+    <section class="view-panel analysis-view" id="view-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
+      <div class="view-heading">
+        <p class="eyebrow"><span class="eyebrow-line"></span> SIGNAL, NOT NOISE</p>
+        <h1>Sentiment <span>at a glance.</span></h1>
+        <p class="view-description">See how customer opinion shaped the products in your latest comparison.</p>
+      </div>
+      <div class="analysis-metrics" aria-label="Sentiment summary">
+        <div class="analysis-metric"><span class="metric-label">AVERAGE VADER SCORE</span><strong id="analysis-average">—</strong></div>
+        <div class="analysis-metric"><span class="metric-label">POSITIVE PICKS</span><strong id="analysis-positive">—</strong></div>
+        <div class="analysis-metric"><span class="metric-label">PRODUCTS ANALYZED</span><strong id="analysis-count">—</strong></div>
+      </div>
+      <section class="chart-panel glass-panel" aria-labelledby="chart-title">
+        <div class="chart-heading"><div><p class="eyebrow"><span class="eyebrow-line"></span> LATEST COMPARISON</p><h2 id="chart-title">Review sentiment by product</h2></div><span class="chart-scale">NEGATIVE <i></i> POSITIVE</span></div>
+        <div class="sentiment-chart" id="sentiment-chart" aria-live="polite">
+          <div class="empty-state chart-empty"><div class="empty-mark" aria-hidden="true">◌</div><p class="empty-title">No comparison to analyze yet.</p><p class="empty-copy">Run the comparison engine to see its product sentiment breakdown.</p></div>
+        </div>
+        <div class="chart-axis" aria-hidden="true"><span>−1.0</span><span>−0.5</span><span>0</span><span>+0.5</span><span>+1.0</span></div>
+      </section>
+    </section>
+
+    <section class="view-panel history-view" id="view-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+      <div class="view-heading history-heading">
+        <p class="eyebrow"><span class="eyebrow-line"></span> YOUR SAVED WORK</p>
+        <h1>Calculation <span>history.</span></h1>
+        <p class="view-description">Past comparisons saved to the RupeeWise database.</p>
+      </div>
+      <section class="history-panel glass-panel" aria-labelledby="history-title">
+        <div class="history-panel-heading"><div><p class="eyebrow"><span class="eyebrow-line"></span> RECENT RUNS</p><h2 id="history-title">Database history</h2></div><span class="history-count" id="history-count">0 RECORDS</span></div>
+        <p class="history-state" id="history-state" role="status">Loading saved calculations…</p>
+        <div class="history-table-wrap" id="history-table-wrap" hidden>
+          <table class="history-table">
+            <thead><tr><th scope="col">DATE</th><th scope="col">SEARCH</th><th scope="col">BUDGET</th><th scope="col">PICKS</th><th scope="col">ALLOCATED</th></tr></thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <footer class="page-footer"><span>RUPEEWISE PRODUCT OPTIMIZATION</span><span>THOUGHTFUL PICKS, BY DESIGN <span class="footer-star">✳</span></span></footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="js/app.js" defer></script>
+</body>
+</html>

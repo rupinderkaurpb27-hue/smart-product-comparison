@@ -1,6 +1,7 @@
 from math import isfinite
 from pathlib import Path
 from datetime import datetime, timezone
+from itertools import combinations
 
 from dotenv import load_dotenv
 from flask import Flask, request
@@ -9,16 +10,146 @@ from flask_cors import CORS
 load_dotenv(Path(__file__).with_name(".env"))
 
 if __package__:
-    from .algorithms.knapsack import fractional_knapsack
     from .database import client, db
     from .services.sentiment import average_sentiment_score
 else:
-    from algorithms.knapsack import fractional_knapsack
     from database import client, db
     from services.sentiment import average_sentiment_score
 
 app = Flask(__name__)
 CORS(app)
+
+
+BUNDLE_CATALOG = (
+    {
+        "name": "Performance Bundle",
+        "category": "Hardware components",
+        "discount_percent": 12,
+        "items": (
+            {"name": "Corsair Vengeance 16GB RAM", "price": 4999},
+            {"name": "Kingston NV2 1TB SSD", "price": 5499},
+            {"name": "WD Blue 1TB SSD", "price": 6499},
+            {"name": "G.Skill 32GB RAM", "price": 8999},
+        ),
+    },
+    {
+        "name": "Creator Bundle",
+        "category": "Creative peripherals",
+        "discount_percent": 9,
+        "items": (
+            {"name": "Logitech Wireless Keyboard", "price": 3499},
+            {"name": "LG 24-inch Full HD Monitor", "price": 10999},
+            {"name": "Logitech Precision Mouse", "price": 2499},
+            {"name": "Wacom One Drawing Tablet", "price": 5499},
+        ),
+    },
+    {
+        "name": "Essentials Bundle",
+        "category": "Everyday accessories",
+        "discount_percent": 5,
+        "items": (
+            {"name": "boAt Rockerz Headphones", "price": 1499},
+            {"name": "Mi Smart Band", "price": 2499},
+            {"name": "Portronics Mouse Pad", "price": 499},
+            {"name": "Anker 20W USB-C Charger", "price": 1299},
+        ),
+    },
+)
+
+
+def select_core_item(products, budget):
+    affordable_products = [
+        (index, product)
+        for index, product in enumerate(products)
+        if product["price"] <= budget
+    ]
+    if not affordable_products:
+        return None
+
+    _, product = max(
+        affordable_products,
+        key=lambda entry: (
+            entry[1]["score"] / max(entry[1]["price"], 1),
+            entry[1]["score"],
+            -entry[1]["price"],
+            -entry[0],
+        ),
+    )
+    return {
+        "name": product["name"],
+        "price": product["price"],
+        "sentiment_score": product["sentiment_score"],
+        "keyword_relevance": product["keyword_relevance"],
+        "combined_value_rank": product["combined_value_rank"],
+        "score": product["score"],
+    }
+
+
+def generate_bundles(core_item, budget):
+    core_price = core_item["price"] if core_item else 0
+    remaining_budget = max(0, budget - core_price)
+    minimum_addons = 1 if core_item else 2
+    bundles = []
+
+    for bundle_type in BUNDLE_CATALOG:
+        discount_percent = bundle_type["discount_percent"]
+        options = []
+        for item_count in range(minimum_addons, len(bundle_type["items"]) + 1):
+            for items in combinations(bundle_type["items"], item_count):
+                subtotal = sum(item["price"] for item in items)
+                discounted_total = int(round(
+                    subtotal * (100 - discount_percent) / 100
+                ))
+                options.append((discounted_total, items, subtotal))
+
+        affordable_options = [
+            option for option in options if option[0] <= remaining_budget
+        ]
+        selected = max(
+            affordable_options,
+            key=lambda option: (option[0], len(option[1])),
+            default=None,
+        )
+        if selected:
+            discounted_addon_total, addon_items, addon_subtotal = selected
+            savings = addon_subtotal - discounted_addon_total
+        else:
+            addon_items = ()
+            addon_subtotal = 0
+            discounted_addon_total = 0
+            savings = 0
+
+        lowest_option = min(options, key=lambda option: option[0], default=None)
+        package_items = []
+        if core_item:
+            package_items.append({
+                "name": core_item["name"],
+                "price": core_price,
+                "is_core": True,
+            })
+        package_items.extend(
+            {"name": item["name"], "price": item["price"], "is_core": False}
+            for item in addon_items
+        )
+        total_cost = core_price + discounted_addon_total
+
+        bundles.append({
+            "name": bundle_type["name"],
+            "category": bundle_type["category"],
+            "discount_percent": discount_percent,
+            "available": selected is not None,
+            "items": package_items,
+            "subtotal": core_price + addon_subtotal,
+            "savings": savings,
+            "total_cost": total_cost,
+            "remaining_budget": max(0, budget - total_cost),
+            "remaining_allowance": remaining_budget,
+            "shortfall": max(0, lowest_option[0] - remaining_budget)
+            if lowest_option
+            else 0,
+        })
+
+    return remaining_budget, bundles
 
 
 @app.get("/")
@@ -51,7 +182,7 @@ def compare_products():
     keyword = keyword.strip()
     normalized_keyword = keyword.casefold()
     if "laptop" in normalized_keyword:
-        if budget < 75000:
+        if budget < 115000:
             products = [
                 {
                     "name": "HP Pavilion 15",
@@ -105,7 +236,10 @@ def compare_products():
                     ],
                 },
             ]
-    elif "mobile" in normalized_keyword or "phone" in normalized_keyword:
+    elif (
+        "mobile" in normalized_keyword
+        or ("phone" in normalized_keyword and "headphone" not in normalized_keyword)
+    ):
         if budget < 75000:
             products = [
                 {
@@ -295,12 +429,16 @@ def compare_products():
         product["combined_value_rank"] = combined_value_rank
         product["score"] = combined_value_rank
 
-    selections = fractional_knapsack(products, budget)
+    core_item = select_core_item(products, budget)
+    remaining_budget, bundles = generate_bundles(core_item, budget)
+    selections = [core_item] if core_item else []
     history_saved = False
     try:
         db.comparison_history.insert_one({
             "keyword": keyword,
             "budget": budget,
+            "core_item": core_item,
+            "bundles": bundles,
             "selections": selections,
             "created_at": datetime.now(timezone.utc),
         })
@@ -311,6 +449,9 @@ def compare_products():
     return {
         "keyword": keyword,
         "budget": budget,
+        "core_item": core_item,
+        "remaining_budget": remaining_budget,
+        "bundles": bundles,
         "selections": selections,
         "history_saved": history_saved,
     }
@@ -325,6 +466,8 @@ def comparison_history():
                 "id": str(record["_id"]),
                 "keyword": record["keyword"],
                 "budget": record["budget"],
+                "core_item": record.get("core_item"),
+                "bundles": record.get("bundles", []),
                 "selections": record["selections"],
                 "created_at": record["created_at"].isoformat(),
             }

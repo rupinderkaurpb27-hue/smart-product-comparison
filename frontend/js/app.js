@@ -30,70 +30,92 @@ function showMessage(message) {
   showMessage.timeoutId = window.setTimeout(() => toast.classList.remove('is-visible'), 4200);
 }
 
-function sentimentFor(score) {
-  if (score > 0.05) return { label: 'POSITIVE', className: 'sentiment-positive' };
-  if (score < -0.05) return { label: 'NEGATIVE', className: 'sentiment-negative' };
-  return { label: 'NEUTRAL', className: 'sentiment-neutral' };
-}
-
-function renderSummary(selections, budget) {
-  const spent = selections.reduce((total, item) => total + item.price * item.fraction, 0);
+function renderSummary(bundle, budget) {
+  const spent = bundle ? bundle.total_cost : 0;
   const percent = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
   document.querySelector('#meter-fill').style.width = `${percent}%`;
   document.querySelector('#meter-percent').textContent = `${Math.round(percent)}%`;
   document.querySelector('.budget-meter').setAttribute('aria-label', `${Math.round(percent)} percent of budget allocated`);
   document.querySelector('#summary-spent').textContent = formatRupees(spent);
   document.querySelector('#summary-remaining').textContent = formatRupees(Math.max(0, budget - spent));
-  document.querySelector('#summary-count').textContent = String(selections.length).padStart(2, '0');
-  document.querySelector('#summary-footnote').textContent = selections.length
-    ? `${selections.length} ${selections.length === 1 ? 'pick' : 'picks'} ranked by value per rupee.`
-    : 'No products fit this budget. Try increasing your limit.';
+  document.querySelector('#summary-count').textContent = bundle
+    ? String(bundle.items.length).padStart(2, '0')
+    : '00';
+  document.querySelector('#summary-footnote').textContent = bundle
+    ? `${bundle.name} selected — saving ${formatRupees(bundle.savings)} on the bundle items.`
+    : 'No complete bundle fits this budget. Try increasing your limit.';
 }
 
-function renderProducts(selections) {
+function renderProducts(bundles, budget) {
   productResults.replaceChildren();
   productResults.classList.remove('is-loading');
 
-  if (!selections.length) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-state';
-    empty.innerHTML = '<div class="empty-mark" aria-hidden="true">↗</div><p class="empty-title">No picks fit this budget.</p><p class="empty-copy">Increase your maximum budget to see more value-ranked products.</p>';
-    productResults.append(empty);
-    return;
-  }
-
+  let selectedBundle = bundles.find((bundle) => bundle.available) || null;
   const fragment = document.createDocumentFragment();
-  selections.forEach((product, index) => {
-    const sentiment = sentimentFor(Number(product.sentiment_score) || 0);
-    const fraction = Math.max(0, Math.min(1, Number(product.fraction) || 0));
-    const percentage = Number((fraction * 100).toFixed(1));
-    const allocatedCost = Number(product.price) * fraction;
-    const card = document.createElement('article');
-    card.className = 'product-card';
-    card.style.animationDelay = `${Math.min(index * 65, 260)}ms`;
+  bundles.forEach((bundle, index) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'bundle-card';
+    card.disabled = !bundle.available;
+    card.setAttribute('aria-pressed', String(bundle === selectedBundle));
+    card.style.animationDelay = `${Math.min(index * 65, 195)}ms`;
     card.innerHTML = `
-      <div class="card-top">
-        <h3 class="product-name"></h3>
-        <span class="rank-chip">PICK ${String(index + 1).padStart(2, '0')}</span>
-      </div>
-      <div class="card-price-row">
-        <div class="price-breakdown">
-          <span class="original-price"></span>
-          <span class="product-price"></span>
-        </div>
-        <span class="fraction-tag">FRACTIONAL INCLUSION<strong>${percentage}%</strong></span>
-      </div>
-      <div class="card-divider"></div>
-      <div class="card-details">
-        <span class="sentiment-badge ${sentiment.className}">${sentiment.label}</span>
-        <span class="score-label">VADER ${Number(product.sentiment_score || 0).toFixed(2)}</span>
-      </div>`;
-    card.querySelector('.product-name').textContent = product.name;
-    card.querySelector('.original-price').textContent = `Original Price: ${formatRupees(product.price)}`;
-    card.querySelector('.product-price').textContent = `Allocated Cost: ${formatRupees(allocatedCost)}`;
+      <span class="bundle-card-heading">
+        <span class="bundle-category"></span>
+        <span class="discount-badge"></span>
+      </span>
+      <span class="bundle-name"></span>
+      <span class="bundle-caption">COMPLETE PACKAGE · WHOLE ITEMS ONLY</span>
+      <span class="bundle-allowance"></span>
+      <span class="bundle-checklist"></span>
+      <span class="bundle-divider"></span>
+      <span class="bundle-pricing"><span>PACKAGE TOTAL</span><strong class="bundle-total"></strong></span>
+      <span class="bundle-savings"></span>
+      <span class="bundle-status"></span>`;
+    card.querySelector('.bundle-category').textContent = bundle.category;
+    card.querySelector('.discount-badge').textContent = `${bundle.discount_percent}% OFF`;
+    card.querySelector('.bundle-name').textContent = bundle.name;
+    card.querySelector('.bundle-allowance').textContent = `ADD-ON ALLOWANCE ${formatRupees(bundle.remaining_allowance)}`;
+    card.querySelector('.bundle-total').textContent = bundle.available
+      ? formatRupees(bundle.total_cost)
+      : 'Not available';
+    card.querySelector('.bundle-savings').textContent = bundle.available
+      ? `You save ${formatRupees(bundle.savings)}`
+      : `Need ${formatRupees(bundle.shortfall)} more in your remaining budget`;
+    card.querySelector('.bundle-status').textContent = bundle.available
+      ? 'SELECT PACKAGE'
+      : 'INCREASE BUDGET TO UNLOCK';
+
+    const checklist = card.querySelector('.bundle-checklist');
+    bundle.items.forEach((item) => {
+      const row = document.createElement('span');
+      row.className = 'bundle-item';
+      const check = document.createElement('span');
+      check.className = 'bundle-check';
+      check.setAttribute('aria-hidden', 'true');
+      check.textContent = '✓';
+      const name = document.createElement('span');
+      name.className = 'bundle-item-name';
+      name.textContent = item.name;
+      const price = document.createElement('span');
+      price.className = 'bundle-item-price';
+      price.textContent = formatRupees(item.price);
+      row.append(check, name, price);
+      checklist.append(row);
+    });
+
+    card.addEventListener('click', () => {
+      if (!bundle.available) return;
+      selectedBundle = bundle;
+      productResults.querySelectorAll('.bundle-card').forEach((option) => {
+        option.setAttribute('aria-pressed', String(option === card));
+      });
+      renderSummary(selectedBundle, budget);
+    });
     fragment.append(card);
   });
   productResults.append(fragment);
+  renderSummary(selectedBundle, budget);
 }
 
 function renderAnalysis(comparison) {
@@ -155,8 +177,13 @@ async function loadHistory() {
     document.querySelector('#history-count').textContent = `${history.length} ${history.length === 1 ? 'RECORD' : 'RECORDS'}`;
 
     history.forEach((record) => {
-      const selections = Array.isArray(record.selections) ? record.selections : [];
-      const allocated = selections.reduce((sum, item) => sum + item.price * item.fraction, 0);
+      const availableBundles = Array.isArray(record.bundles)
+        ? record.bundles.filter((bundle) => bundle.available)
+        : [];
+      const bestPackage = availableBundles.reduce(
+        (best, bundle) => !best || bundle.total_cost < best.total_cost ? bundle : best,
+        null,
+      );
       const row = document.createElement('tr');
       const date = document.createElement('td');
       const keyword = document.createElement('td');
@@ -166,8 +193,8 @@ async function loadHistory() {
       date.textContent = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(record.created_at));
       keyword.textContent = record.keyword;
       budget.textContent = formatRupees(record.budget);
-      picks.textContent = String(selections.length).padStart(2, '0');
-      total.textContent = formatRupees(allocated);
+      picks.textContent = String(availableBundles.length).padStart(2, '0');
+      total.textContent = bestPackage ? formatRupees(bestPackage.total_cost) : '—';
       row.append(date, keyword, budget, picks, total);
       rows.append(row);
     });
@@ -224,11 +251,11 @@ form.addEventListener('submit', async (event) => {
   }
 
   compareButton.disabled = true;
-  compareButton.querySelector('.button-text').textContent = 'Finding your best picks…';
+  compareButton.querySelector('.button-text').textContent = 'Building your bundles…';
   productResults.setAttribute('aria-busy', 'true');
-  productResults.innerHTML = '<div class="empty-state loading-state"><div class="empty-mark" aria-hidden="true">✳</div><p class="empty-title">Finding your best-value picks…</p><p class="empty-copy">Reviewing sentiment and balancing your budget.</p></div>';
+  productResults.innerHTML = '<div class="empty-state loading-state"><div class="empty-mark" aria-hidden="true">✳</div><p class="empty-title">Building your package options…</p><p class="empty-copy">Finding complete add-ons and applying the best combo discounts.</p></div>';
   productResults.classList.add('is-loading');
-  document.querySelector('#summary-footnote').textContent = 'Sorting the shortlist by fractional value…';
+  document.querySelector('#summary-footnote').textContent = 'Building three complete, discounted package options…';
 
   try {
     const response = await fetch('http://127.0.0.1:5000/api/compare', {
@@ -238,11 +265,12 @@ form.addEventListener('submit', async (event) => {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'The comparison could not be completed.');
-    if (!Array.isArray(data.selections)) throw new Error('The API returned an unexpected response.');
+    if (!Array.isArray(data.selections) || !Array.isArray(data.bundles)) {
+      throw new Error('The API returned an unexpected response.');
+    }
 
     currentComparison = { keyword, budget, selections: data.selections };
-    renderProducts(data.selections);
-    renderSummary(data.selections, budget);
+    renderProducts(data.bundles, budget);
     if (data.history_saved === false) {
       document.querySelector('#summary-footnote').textContent = 'Comparison complete, but MongoDB could not save this run.';
     }
